@@ -1,95 +1,163 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client'
+import { Box, Button, Stack, TextField, Typography } from "@mui/material";
+
+
+import { useState } from "react";
 
 export default function Home() {
-  return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>app/page.js</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
+ const [messages, setMessages]= useState([
+  {
+  role: 'assistant',
+  content: `Hi I'm your fitness Support Agent, how can I assist you today?`,
+  }
+])
+const [message, setMessage] = useState(''); 
+const sendMessage = async () => {
+if (!message.trim()) return;  // Don't send empty messages
 
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+setMessage('')
+setMessages((messages) => [
+  ...messages,
+  { role: 'user', content: message },
+  { role: 'assistant', content: '' },
+])
 
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
+try {
+  const response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify([...messages, { role: 'user', content: message }]),
+  })
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
+  if (!response.ok) {
+    throw new Error('Network response was not ok')
+  }
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore starter templates for Next.js.</p>
-        </a>
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
 
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
-  );
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    const text = decoder.decode(value, { stream: true })
+    setMessages((messages) => {
+      let lastMessage = messages[messages.length - 1]
+      let otherMessages = messages.slice(0, messages.length - 1)
+      return [
+        ...otherMessages,
+        { ...lastMessage, content: lastMessage.content + text },
+      ]
+    })
+  }
+} catch (error) {
+  console.error('Error:', error)
+  setMessages((messages) => [
+    ...messages,
+    { role: 'assistant', content: "I'm sorry, but I encountered an error. Please try again later." },
+  ])
 }
+}
+  return(
+    
+    <Box
+    width={'100vw'}
+    height={'100vh'}
+    display={'flex'}
+    justifyContent={'center'}
+    alignItems={'center'}
+    sx={{
+      background: 'linear-gradient(to bottom, #e0f7fa, #80deea)',
+      padding: 3,
+      position: 'relative', 
+    }}
+  >
+    {/* Background Image Box */}
+    <Box
+      sx={{
+        position: 'absolute',
+     left: 0,
+    top: 0,
+    bottom: 0,
+    width: '100%',
+    backgroundImage: 'url(/dumbbell.png)', 
+    backgroundSize: 'contain', 
+    backgroundRepeat: 'no-repeat', 
+    backgroundPosition: 'left', 
+    opacity: 0.3, 
+    zIndex: 1,
+      }}
+    />
+
+    {/* Chat Box */}
+    <Stack
+      direction={'column'}
+      width={'600px'}
+      height={'700px'}
+      sx={{
+        borderRadius: 4,
+        boxShadow: 3,
+        backgroundColor: 'white',
+        zIndex: 2, 
+        overflow: 'hidden',
+      }}
+    >
+      <Box
+        sx={{
+          backgroundColor: 'primary.main',
+          color: 'white',
+          padding: 2,
+          textAlign: 'center',
+        }}
+      >
+        <Typography variant="h6" component="div">
+          Your Personal AI Fitness Support Bot
+        </Typography>
+      </Box>
+      <Stack
+        direction={'column'}
+        spacing={2}
+        flexGrow={1}
+        overflow={'auto'}
+        maxHeight={'100%'}
+        p={2}
+      >
+        {messages.map((message, index) => (
+          <Box
+            key={index}
+            display={'flex'}
+            justifyContent={message.role === 'assistant' ? 'flex-start' : 'flex-end'}
+          >
+            <Box
+              sx={{
+                bgcolor: message.role === 'assistant' ? 'primary.light' : 'secondary.light',
+                color: 'black',
+                borderRadius: 3,
+                boxShadow: 1,
+                p: 2,
+                maxWidth: '75%',
+                wordWrap: 'break-word',
+              }}
+              whiteSpace="pre-line" // Enable handling of line breaks
+            >
+              {message.content}
+            </Box>
+          </Box>
+        ))}
+      </Stack>
+      <Stack direction={'row'} spacing={2} p={2} sx={{ borderTop: '1px solid #eee' }}>
+        <TextField
+          label="Enter a message"
+          fullWidth
+          variant="outlined"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+        />
+        <Button variant="contained" color="primary" onClick={sendMessage}>
+          Send
+        </Button>
+      </Stack>
+    </Stack>
+  </Box>
+)}
